@@ -1,0 +1,10 @@
+[package]
+name = "not-scripting"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+pest = "2.7"
+pest_derive = "2.7"
+anyhow = "1.0"
+std = "0.1"  # For std::process::Command, etc.
