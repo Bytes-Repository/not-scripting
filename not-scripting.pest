@@ -1,0 +1,102 @@
+WHITESPACE = _{ " " | "\t" | "\n" | "\r" }
+
+program = { SOI ~ statement* ~ EOI }
+
+statement = _{ 
+    var_decl 
+  | assign 
+  | print_stmt 
+  | if_stmt 
+  | loop_stmt 
+  | fn_decl 
+  | fn_call 
+  | command 
+  | expr ~ ";"? 
+  | comment
+}
+
+comment = { "!" ~ (!"\n" ~ ANY)* ~ ("\n" | EOI) }
+
+var_decl = { 
+    ( "let" | "var" ) ~ WHITESPACE+ ~ ident ~ ( ":" ~ type_name )? ~ WHITESPACE* ~ "=" ~ WHITESPACE* ~ expr ~ ";"? 
+}
+
+assign = { ident ~ WHITESPACE* ~ "=" ~ WHITESPACE* ~ expr ~ ";"? }
+
+type_name = @{ ascii_alpha+ }  // e.g., i32, String, etc. (uproszczone)
+
+print_stmt = { 
+    ( "print" | "println!" | "writeln" ) ~ WHITESPACE* ~ "("? ~ expr ~ ")"? ~ ";"? 
+}
+
+if_stmt = { 
+    "if" ~ WHITESPACE+ ~ expr ~ WHITESPACE* ~ block 
+    ~ ( WHITESPACE* ~ "else" ~ WHITESPACE* ~ block )? 
+}
+
+loop_stmt = { 
+    "loop" ~ WHITESPACE* ~ ( expr ~ WHITESPACE* )? ~ block  // loop { ... } lub loop 5 { ... }
+  | "while" ~ WHITESPACE+ ~ expr ~ WHITESPACE* ~ block
+  | "for" ~ WHITESPACE+ ~ ident ~ WHITESPACE+ ~ "in" ~ WHITESPACE+ ~ expr ~ WHITESPACE* ~ block  // for x in range
+}
+
+fn_decl = { 
+    ( "fn" | "def" ) ~ WHITESPACE+ ~ ident ~ WHITESPACE* ~ "(" ~ param_list? ~ ")" ~ WHITESPACE* ~ block 
+}
+
+param_list = { param ~ ( "," ~ WHITESPACE* ~ param )* }
+
+param = { ident ~ ( ":" ~ type_name )? }
+
+fn_call = { ident ~ WHITESPACE* ~ "(" ~ arg_list? ~ ")" ~ ";"? }
+
+arg_list = { expr ~ ( "," ~ WHITESPACE* ~ expr )* }
+
+command = { ">" ~ WHITESPACE* ~ (!"\n" ~ ANY)* ~ ("\n" | EOI) }  // > echo "hello"
+
+block = _{ 
+    "{" ~ statement* ~ "}" 
+  | "then" ~ statement* ~ "end" ~ ( "if" | "" )?  // Delphi/Ruby style
+  | "do" ~ statement* ~ "end"  // Ruby style
+  | "begin" ~ statement* ~ "end" ~ ";"?  // Delphi
+}
+
+expr = { logic_expr }
+
+logic_expr = { compare_expr ~ ( WHITESPACE* ~ ( "&&" | "||" | "and" | "or" ) ~ WHITESPACE* ~ compare_expr )* }
+
+compare_expr = { arith_expr ~ ( WHITESPACE* ~ ( "==" | "!=" | ">" | "<" | ">=" | "<=" ) ~ WHITESPACE* ~ arith_expr )* }
+
+arith_expr = { term ~ ( WHITESPACE* ~ ( "+" | "-" ) ~ WHITESPACE* ~ term )* }
+
+term = { factor ~ ( WHITESPACE* ~ ( "*" | "/" | "%" ) ~ WHITESPACE* ~ factor )* }
+
+factor = _{ 
+    "(" ~ expr ~ ")" 
+  | literal 
+  | ident 
+  | fn_call  // Allow calls in expr
+  | unary 
+}
+
+unary = { ( "!" | "-" ) ~ factor }
+
+literal = _{ string | number | bool }
+
+string = @{ "\"" ~ ( [^ "\""] | "\\\"" )* ~ "\"" | "'" ~ ( [^ "'"] | "\\'" )* ~ "'" }
+
+number = @{ int | float }
+
+int = @{ "-"? ~ digit+ }
+
+float = @{ "-"? ~ digit* ~ "." ~ digit+ }
+
+bool = @{ "true" | "false" | "True" | "False" }
+
+digit = @{ "0".."9" }
+
+ident = @{ ascii_alpha ~ ( ascii_alpha | ascii_digit | "_" )* }
+
+ascii_alpha = @{ "a".."z" | "A".."Z" }
+
+ascii_digit = @{ "0".."9" }
