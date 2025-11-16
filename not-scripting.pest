@@ -83,7 +83,11 @@ unary = { ( "!" | "-" ) ~ factor }
 
 literal = _{ string | number | bool }
 
-string = @{ "\"" ~ ( [^ "\""] | "\\\"" )* ~ "\"" | "'" ~ ( [^ "'"] | "\\'" )* ~ "'" }
+string = @{ "\"" ~ double_quoted_char* ~ "\"" | "'" ~ single_quoted_char* ~ "'" }
+
+double_quoted_char = { (!"\"" ~ ANY) | ( "\\\\" ~ ANY ) }
+
+single_quoted_char = { (!"'" ~ ANY) | ( "\\\\" ~ ANY ) }
 
 number = @{ int | float }
 
@@ -93,10 +97,10 @@ float = @{ "-"? ~ digit* ~ "." ~ digit+ }
 
 bool = @{ "true" | "false" | "True" | "False" }
 
-digit = @{ "0".."9" }
+digit = @{ '0'..'9' }
 
 ident = @{ ascii_alpha ~ ( ascii_alpha | ascii_digit | "_" )* }
 
-ascii_alpha = @{ "a".."z" | "A".."Z" }
+ascii_alpha = @{ 'a'..'z' | 'A'..'Z' }
 
-ascii_digit = @{ "0".."9" }
+ascii_digit = @{ '0'..'9' }
