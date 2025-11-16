@@ -25,6 +25,7 @@ enum Value {
     Float(f64),
     String(String),
     Bool(bool),
+    Range(i64, i64),
     Function {
         params: Vec<String>,
         body: Vec<Pair<'static, Rule>>,
@@ -106,7 +107,7 @@ impl Interpreter {
             Value::Float(f) => f.to_string(),
             Value::String(s) => s,
             Value::Bool(b) => b.to_string(),
-            _ => bail!("Cannot print function"),
+            _ => bail!("Cannot print function or range"),
         };
         if keyword == "println!" || keyword == "writeln" {
             println!("{}", output);
@@ -120,7 +121,8 @@ impl Interpreter {
         let mut inner = pair.into_inner();
         let _if = inner.next();
         let cond_pair = inner.next().unwrap();
-        let cond = self.eval_as_bool(self.eval_expr(cond_pair)?)?;
+        let value = self.eval_expr(cond_pair)?;
+        let cond = self.eval_as_bool(value)?;
         let then_block = inner.next().unwrap();
         let else_block_opt = inner.next();
         if cond {
@@ -139,7 +141,8 @@ impl Interpreter {
                 let count_opt = inner.next();
                 let block = inner.next().unwrap();
                 if let Some(count_pair) = count_opt {
-                    let count = self.eval_as_int(self.eval_expr(count_pair)?)? as usize;
+                    let value = self.eval_expr(count_pair)?;
+                    let count = self.eval_as_int(value)? as usize;
                     for _ in 0..count {
                         self.exec_block(block.clone())?;
                     }
@@ -152,7 +155,12 @@ impl Interpreter {
             "while" => {
                 let cond_pair = inner.next().unwrap();
                 let block = inner.next().unwrap();
-                while self.eval_as_bool(self.eval_expr(cond_pair.clone())?)? {
+                loop {
+                    let value = self.eval_expr(cond_pair.clone())?;
+                    let cond = self.eval_as_bool(value)?;
+                    if !cond {
+                        break;
+                    }
                     self.exec_block(block.clone())?;
                 }
             }
@@ -161,17 +169,14 @@ impl Interpreter {
                 let _in = inner.next();
                 let range_expr = inner.next().unwrap();
                 let block = inner.next().unwrap();
-                let range_str = range_expr.as_str();
-                if range_str.contains("..") {
-                    let parts: Vec<&str> = range_str.split("..").collect();
-                    let start = parts[0].parse::<i64>().unwrap_or(0);
-                    let end = parts[1].parse::<i64>().unwrap_or(0);
+                let range = self.eval_expr(range_expr)?;
+                if let Value::Range(start, end) = range {
                     for i in start..end {
                         self.variables.insert(ident.clone(), Value::Int(i));
                         self.exec_block(block.clone())?;
                     }
                 } else {
-                    bail!("Unsupported for range");
+                    bail!("For range must be a range");
                 }
             }
             _ => bail!("Unknown loop"),
@@ -250,6 +255,16 @@ impl Interpreter {
 
     fn eval_expr(&mut self, pair: Pair<'static, Rule>) -> Result<Value> {
         match pair.as_rule() {
+            Rule::range => {
+                let mut inner = pair.into_inner();
+                let start_pair = inner.next().unwrap();
+                let end_pair = inner.next().unwrap();
+                let start_val = self.eval_expr(start_pair)?;
+                let end_val = self.eval_expr(end_pair)?;
+                let start = self.eval_as_int(start_val)?;
+                let end = self.eval_as_int(end_val)?;
+                Ok(Value::Range(start, end))
+            }
             Rule::logic_expr => self.eval_logic(pair.into_inner()),
             Rule::compare_expr => self.eval_compare(pair.into_inner()),
             Rule::arith_expr => self.eval_arith(pair.into_inner()),
@@ -277,7 +292,8 @@ impl Interpreter {
                     Rule::unary => {
                         let mut unary_inner = inner_pair.into_inner();
                         let op = unary_inner.next().unwrap().as_str();
-                        let factor = self.eval_expr(unary_inner.next().unwrap())?;
+                        let factor_pair = unary_inner.next().unwrap();
+                        let factor = self.eval_expr(factor_pair)?;
                         match op {
                             "-" => match factor {
                                 Value::Int(n) => Ok(Value::Int(-n)),
