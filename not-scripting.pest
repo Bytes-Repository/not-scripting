@@ -2,46 +2,46 @@ WHITESPACE = _{ " " | "\t" | "\n" | "\r" }
 
 program = { SOI ~ statement* ~ EOI }
 
-statement = _{ 
-    var_decl 
-  | assign 
-  | print_stmt 
-  | if_stmt 
-  | loop_stmt 
-  | fn_decl 
-  | fn_call 
-  | command 
-  | expr ~ ";"? 
+statement = _{
+    var_decl
+  | assign
+  | print_stmt
+  | if_stmt
+  | loop_stmt
+  | fn_decl
+  | fn_call
+  | command
+  | expr ~ ";"?
   | comment
 }
 
 comment = { "!" ~ (!"\n" ~ ANY)* ~ ("\n" | EOI) }
 
-var_decl = { 
-    ( "let" | "var" ) ~ WHITESPACE+ ~ ident ~ ( ":" ~ type_name )? ~ WHITESPACE* ~ "=" ~ WHITESPACE* ~ expr ~ ";"? 
+var_decl = {
+    ( "let" | "var" ) ~ WHITESPACE+ ~ ident ~ ( ":" ~ type_name )? ~ WHITESPACE* ~ "=" ~ WHITESPACE* ~ expr ~ ";"?
 }
 
 assign = { ident ~ WHITESPACE* ~ "=" ~ WHITESPACE* ~ expr ~ ";"? }
 
 type_name = @{ ascii_alpha+ }  // e.g., i32, String, etc. (uproszczone)
 
-print_stmt = { 
-    ( "print" | "println!" | "writeln" ) ~ WHITESPACE* ~ "("? ~ expr ~ ")"? ~ ";"? 
+print_stmt = {
+    ( "print" | "println!" | "writeln" ) ~ WHITESPACE* ~ "("? ~ expr ~ ")"? ~ ";"?
 }
 
-if_stmt = { 
-    "if" ~ WHITESPACE+ ~ expr ~ WHITESPACE* ~ block 
-    ~ ( WHITESPACE* ~ "else" ~ WHITESPACE* ~ block )? 
+if_stmt = {
+    "if" ~ WHITESPACE+ ~ expr ~ WHITESPACE* ~ block
+    ~ ( WHITESPACE* ~ "else" ~ WHITESPACE* ~ block )?
 }
 
-loop_stmt = { 
+loop_stmt = {
     "loop" ~ WHITESPACE* ~ ( expr ~ WHITESPACE* )? ~ block  // loop { ... } lub loop 5 { ... }
   | "while" ~ WHITESPACE+ ~ expr ~ WHITESPACE* ~ block
   | "for" ~ WHITESPACE+ ~ ident ~ WHITESPACE+ ~ "in" ~ WHITESPACE+ ~ expr ~ WHITESPACE* ~ block  // for x in range
 }
 
-fn_decl = { 
-    ( "fn" | "def" ) ~ WHITESPACE+ ~ ident ~ WHITESPACE* ~ "(" ~ param_list? ~ ")" ~ WHITESPACE* ~ block 
+fn_decl = {
+    ( "fn" | "def" ) ~ WHITESPACE+ ~ ident ~ WHITESPACE* ~ "(" ~ param_list? ~ ")" ~ WHITESPACE* ~ block
 }
 
 param_list = { param ~ ( "," ~ WHITESPACE* ~ param )* }
@@ -54,14 +54,16 @@ arg_list = { expr ~ ( "," ~ WHITESPACE* ~ expr )* }
 
 command = { ">" ~ WHITESPACE* ~ (!"\n" ~ ANY)* ~ ("\n" | EOI) }  // > echo "hello"
 
-block = _{ 
-    "{" ~ statement* ~ "}" 
+block = _{
+    "{" ~ statement* ~ "}"
   | "then" ~ statement* ~ "end" ~ ( "if" | "" )?  // Delphi/Ruby style
   | "do" ~ statement* ~ "end"  // Ruby style
   | "begin" ~ statement* ~ "end" ~ ";"?  // Delphi
 }
 
-expr = { logic_expr }
+expr = { range | logic_expr }
+
+range = { arith_expr ~ ".." ~ arith_expr }
 
 logic_expr = { compare_expr ~ ( WHITESPACE* ~ ( "&&" | "||" | "and" | "or" ) ~ WHITESPACE* ~ compare_expr )* }
 
@@ -71,12 +73,12 @@ arith_expr = { term ~ ( WHITESPACE* ~ ( "+" | "-" ) ~ WHITESPACE* ~ term )* }
 
 term = { factor ~ ( WHITESPACE* ~ ( "*" | "/" | "%" ) ~ WHITESPACE* ~ factor )* }
 
-factor = _{ 
-    "(" ~ expr ~ ")" 
-  | literal 
-  | ident 
+factor = _{
+    "(" ~ expr ~ ")"
+  | literal
+  | ident
   | fn_call  // Allow calls in expr
-  | unary 
+  | unary
 }
 
 unary = { ( "!" | "-" ) ~ factor }
